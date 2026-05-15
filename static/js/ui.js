@@ -214,15 +214,15 @@ function _scrollToActive(container) {
   const activeEl = container.querySelector('.lyrics-line.active');
   if (!activeEl) return;
 
-  const containerRect = container.getBoundingClientRect();
-  const elRect = activeEl.getBoundingClientRect();
-  // 将当前行滚动到可视区 35% 位置（偏上方，能看到后面几句）
-  const targetY = container.scrollTop + elRect.top - containerRect.top - containerRect.height * 0.35;
+  // 用 offsetTop 计算，避免 getBoundingClientRect 在滚动时产生抖动
+  const containerH = container.clientHeight;
+  const targetY = activeEl.offsetTop + activeEl.offsetHeight / 2 - containerH * 0.35;
 
-  container.scrollTo({
-    top: targetY,
-    behavior: 'smooth'
-  });
+  // 如果距离小于5px则不滚动，减少无意义的重排
+  const diff = Math.abs(container.scrollTop - targetY);
+  if (diff < 5) return;
+
+  container.scrollTo({ top: targetY, behavior: 'smooth' });
 }
 
 // ============ 主题切换 ============

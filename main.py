@@ -954,28 +954,6 @@ def ping():
 
 # ============ 启动 ============
 
-def load_server_config():
-    """从 data/server_config.json 读取配置，不存在则创建默认"""
-    config_file = DATA_DIR / 'server_config.json'
-    defaults = {'host': '127.0.0.1', 'port': 5000}
-
-    if config_file.exists():
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            # 补全缺失字段
-            for k, v in defaults.items():
-                config.setdefault(k, v)
-            return config
-        except Exception:
-            pass
-
-    # 默认配置写入文件
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(defaults, f, indent=2)
-    return dict(defaults)
-
-
 def main():
     import webbrowser
     import threading
@@ -983,26 +961,11 @@ def main():
     host = '127.0.0.1'
     port = 5000
 
-    # 从配置文件读取（优先级1 — 可持久化修改）
-    config = load_server_config()
-    host = config.get('host', host)
-    port = int(config.get('port', port))
-
-    # 命令行参数覆盖（优先级2）
-    if len(sys.argv) > 1:
-        try:
-            port = int(sys.argv[1])
-        except ValueError:
-            pass
-    if len(sys.argv) > 2:
-        host = sys.argv[2]
-
     print(f"""
 {'=' * 50}
   MusicPlayer Server
   Address: http://{host}:{port}
   Mode: Local Offline
-  Config: data/server_config.json (双击编辑可修改端口)
   Quit: Ctrl+C
 {'=' * 50}
 """)

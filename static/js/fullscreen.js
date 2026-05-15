@@ -244,13 +244,10 @@ const ModeGlass = {
     this.inner = document.getElementById('fsGlassLyricInner');
     this.rainCanvas = document.getElementById('fsRainCanvas');
     this.cover = document.getElementById('fsGlassCover');
-    this._loadCfg();
-    this._applyBg();
-    this._applyLyricStyle();
+    this._loadCfg(); this._applyCfg();
     this._initRain();
     this._initSettings();
     this._bindLyricEvents();
-    if (lyrics.lines.length) this._renderAllLines();
   },
 
   _loadCfg() {
@@ -402,7 +399,7 @@ const ModeGlass = {
       if (this._scrollTimer) clearTimeout(this._scrollTimer);
       this._scrollTimer = setTimeout(() => {
         this._userScrolling = false;
-        this._scrollToLine(lyrics.currentLine);
+        this._scrollToLine(lyrics.currentLine, true);
         this._scrollTimer = null;
       }, 1500);
     };
@@ -427,9 +424,13 @@ const ModeGlass = {
     this._scrollToLine(idx);
   },
 
-  _scrollToLine(idx) {
+  _scrollToLine(idx, smooth) {
     const active = this.inner.querySelector('.fs-glass-lyric-line.active');
     if (!active) return;
+    if (smooth) {
+      this.inner.style.transition = 'transform 0.6s cubic-bezier(0.22,0.61,0.36,1)';
+      setTimeout(() => { this.inner.style.transition = ''; }, 700);
+    }
     const stageH = this.stage.clientHeight;
     const elTop = active.offsetTop;
     const elH = active.offsetHeight;

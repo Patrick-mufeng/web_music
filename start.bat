@@ -1,9 +1,10 @@
 @echo off
-chcp 65001 >nul
-title MusicPlayer - 启动中...
+chcp 65001 >nul 2>&1
+set PYTHONIOENCODING=utf-8
+title MusicPlayer
 
 echo ╔═════════════════════════════════════╗
-echo ║     🎵 MusicPlayer 启动脚本 🎵       ║
+echo ║     MusicPlayer 启动脚本           ║
 echo ╚═════════════════════════════════════╝
 echo.
 

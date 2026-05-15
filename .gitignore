@@ -1,7 +1,20 @@
+# Python
 __pycache__/
 *.pyc
 .venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
 .idea/
-data/uploads/*
+.vscode/
+
+# Data
+data/
 !data/uploads/.gitkeep
-data/*.db
+
+# OS
+.DS_Store
+Thumbs.db
