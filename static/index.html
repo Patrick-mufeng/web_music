@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MusicPlayer - 沉浸式音乐播放器</title>
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/fullscreen.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body data-theme="dark">
+
+<canvas id="starfieldCanvas" class="starfield-bg"></canvas>
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- 播放列表抽屉 -->
+<div id="playlistOverlay" class="playlist-overlay hidden"></div>
+<aside id="playlistDrawer" class="playlist-drawer">
+  <div class="drawer-header">
+    <h2 class="drawer-title">播放列表</h2>
+    <div class="drawer-header-actions">
+      <span id="songCount" class="song-count">0首</span>
+      <div class="import-dropdown">
+        <button id="importBtn" class="btn-ghost btn-icon" title="导入歌曲">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <div class="import-menu" id="importMenu">
+          <button id="importFileBtn" class="import-menu-item">导入歌曲文件</button>
+          <button id="importFolderBtn" class="import-menu-item">导入整个文件夹</button>
+        </div>
+      </div>
+      <button id="closePlaylistBtn" class="btn-ghost btn-icon" title="关闭列表">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="search-box">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="搜索歌名 / 歌手..." autocomplete="off">
+  </div>
+  <div id="playlistContainer" class="playlist-container">
+    <div class="playlist-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p>还没有音乐</p>
+      <span>点击上方按钮导入或拖拽文件到窗口</span>
+    </div>
+  </div>
+</aside>
+
+<!-- 歌词设置面板 -->
+<div id="lyricSettingsOverlay" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width:500px;">
+    <div style="position:relative">
+      <h3 class="modal-title">歌词显示设置</h3>
+      <button class="modal-close" id="lyricSettingsClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="settings-grid">
+      <div class="settings-row">
+        <label>字体</label>
+        <select id="settingFont">
+          <option value="'Orbitron','Noto Sans SC',sans-serif">Orbitron (英文)</option>
+          <option value="'Noto Sans SC',sans-serif">Noto Sans</option>
+          <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+          <option value="serif">衬线体</option>
+          <option value="cursive">手写体</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <label>字号</label>
+        <div class="settings-range">
+          <input type="range" id="settingSize" min="10" max="72" value="22">
+          <span id="settingSizeVal">22px</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>字号(激活)</label>
+        <div class="settings-range">
+          <input type="range" id="settingSizeActive" min="14" max="96" value="28">
+          <span id="settingSizeActiveVal">28px</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>文字颜色</label>
+        <input type="color" id="settingColor" value="#ffffff">
+      </div>
+      <div class="settings-row">
+        <label>发光颜色</label>
+        <input type="color" id="settingGlow" value="#00d4ff">
+      </div>
+      <div class="settings-row">
+        <label>发光强度</label>
+        <div class="settings-range">
+          <input type="range" id="settingGlowStrength" min="0" max="80" value="16">
+          <span id="settingGlowStrengthVal">16px</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>未激活透明度</label>
+        <div class="settings-range">
+          <input type="range" id="settingInactiveOpacity" min="5" max="100" value="55">
+          <span id="settingInactiveOpacityVal">55%</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>对齐方式</label>
+        <select id="settingAlign">
+          <option value="center">居中</option>
+          <option value="left">左对齐</option>
+          <option value="right">右对齐</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button id="settingReset" class="btn-ghost">恢复默认</button>
+      <button id="settingSave" class="btn-apply">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div class="app-container">
+  <nav class="top-bar">
+    <button id="playlistBtn" class="btn-ghost btn-icon" title="播放列表">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    </button>
+    <h1 class="app-logo">MUSIC<span>PLAYER</span></h1>
+    <div class="top-bar-right">
+      <button id="lyricSettingsBtn" class="btn-ghost btn-icon" title="歌词设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+      <button id="historyBtn" class="btn-ghost btn-icon" title="播放历史">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <button id="favoritesBtn" class="btn-ghost btn-icon" title="收藏列表">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      </button>
+      <button id="timerBtn" class="btn-ghost btn-icon" title="睡眠定时">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <div class="play-mode-selector">
+        <button id="modeBtn" class="mode-btn" data-mode="list" title="播放模式">
+          <svg id="modeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="1 4 3 4 3 2"/><polyline points="1 10 3 10 3 8"/><polyline points="1 16 3 16 3 14"/><polyline points="21 4 23 4 23 2"/><polyline points="21 10 23 10 23 8"/><polyline points="21 16 23 16 23 14"/><line x1="5" y1="3" x2="19" y2="15"/></svg>
+          <span id="modeLabel">顺序播放</span>
+        </button>
+      </div>
+      <div class="theme-switcher">
+        <button class="theme-dot" data-theme="dark" title="暗黑"></button>
+        <button class="theme-dot" data-theme="neon" title="霓虹"></button>
+        <button class="theme-dot" data-theme="minimal" title="极简"></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <!-- 左：封面 / 频谱 / 控制 -->
+    <section class="left-panel">
+      <div class="player-hero">
+        <div class="album-art-wrapper">
+          <div class="album-art-ring"></div>
+          <div class="album-art-container" id="albumArtContainer">
+            <div class="album-art-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="9"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spectrum-section">
+        <canvas id="spectrumCanvas" class="spectrum-canvas"></canvas>
+      </div>
+
+      <div class="song-info">
+        <h2 id="songTitle" class="song-title">未选择歌曲</h2>
+        <p id="songArtist" class="song-artist">导入音乐开始播放</p>
+        <span id="lyricSourceTag" class="lyric-source-tag hidden"></span>
+      </div>
+
+      <div class="progress-section">
+        <span id="currentTime" class="time-display">00:00</span>
+        <div id="progressBar" class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+          <div id="progressThumb" class="progress-thumb"></div>
+        </div>
+        <span id="totalTime" class="time-display">00:00</span>
+      </div>
+
+      <div class="player-controls">
+        <button id="favoriteBtn" class="ctrl-btn ctrl-btn-sm" title="收藏">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        </button>
+        <button id="prevBtn" class="ctrl-btn" title="上一曲">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button id="playBtn" class="ctrl-btn ctrl-btn-play" title="播放">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <button id="nextBtn" class="ctrl-btn" title="下一曲">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button id="fullscreenBtn" class="ctrl-btn ctrl-btn-sm" title="全屏歌词 (3D空间)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+      </div>
+
+      <div class="volume-section">
+        <button id="muteBtn" class="btn-ghost btn-icon" title="静音">
+          <svg id="volumeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+        </button>
+        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="70">
+      </div>
+    </section>
+
+    <!-- 右：歌词 -->
+    <section class="right-panel">
+      <div id="lyricsDisplay" class="lyrics-display">
+        <p class="lyrics-placeholder">点击歌曲开始播放</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 隐藏文件输入 -->
+<input type="file" id="audioFileInput" accept="audio/*" multiple hidden>
+<input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+<input type="file" id="lrcFileInput" accept=".lrc" hidden>
+
+<!-- 通用弹窗 -->
+<div id="modalOverlay" class="modal-overlay hidden">
+  <div id="modalContent" class="modal-content"></div>
+</div>
+
+<!-- 全屏歌词层 -->
+<div id="fsOverlay" class="fs-overlay hidden">
+  <div class="fs-scene" id="fsScene">
+    <!-- 左上角按钮组 -->
+    <div class="fs-top-left" id="fsTopLeft">
+      <button id="fsExitBtn" class="fs-glass-btn">✕</button>
+      <button id="fsSettingsBtn" class="fs-glass-btn" title="模式设置">⚙</button>
+    </div>
+    <!-- 右上角模式切换 -->
+    <div class="fs-top-right" id="fsTopRight">
+      <button class="fs-mode-btn active" data-mode="3d">3D空间</button>
+      <button class="fs-mode-btn" data-mode="glass">毛玻璃</button>
+    </div>
+
+    <!-- ====== 模式1: 3D空间 ====== -->
+    <div class="fs-mode-content" id="fsMode3D">
+      <div class="fs-bg-white"></div>
+      <!-- 3D空间设置面板 -->
+      <div id="fs3dSettingsPanel" class="fs-settings-panel hidden">
+        <h3>3D空间 · 歌词设置</h3>
+        <div class="fs-settings-grid">
+          <div class="fs-set-row"><label>字体</label>
+            <select id="fs3dSetFont">
+              <option value="'Orbitron','Noto Sans SC',sans-serif">Orbitron</option>
+              <option value="'Noto Sans SC',sans-serif">Noto Sans</option>
+              <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+              <option value="serif">衬线体</option>
+              <option value="cursive">手写体</option>
+            </select></div>
+          <div class="fs-set-row"><label>字体颜色</label>
+            <input type="color" id="fs3dSetColor" value="#1a1a2e"></div>
+          <div class="fs-set-row"><label>字体大小</label>
+            <div class="fs-set-range"><input type="range" id="fs3dSetSize" min="20" max="96" value="48"><span id="fs3dSetSizeVal">48px</span></div></div>
+          <div class="fs-set-row"><label>阴影深度</label>
+            <div class="fs-set-range"><input type="range" id="fs3dSetShadow" min="0" max="30" value="10"><span id="fs3dSetShadowVal">10</span></div></div>
+          <div class="fs-set-row"><label>出场动画</label>
+            <select id="fs3dSetAnim">
+              <option value="slide">滑入淡出</option><option value="fade">纯淡入淡出</option><option value="scale">缩放淡入</option><option value="blur">模糊淡入</option><option value="rotate">3D旋转出现</option><option value="typewriter">打字机效果</option><option value="bounce">弹跳入场</option><option value="flyIn">飞入效果</option>
+            </select></div>
+        </div>
+        <div class="fs-settings-actions">
+          <button id="fs3dSetReset" class="fs-glass-btn">恢复默认</button>
+          <button id="fs3dSetSave" class="fs-save-btn">保存设置</button>
+        </div>
+      </div>
+      <!-- 3D空间歌词 -->
+      <div class="fs-lyric-stage" id="fs3dLyricStage">
+        <div class="fs-lyric-block" id="fs3dLyricBlock">
+          <div class="fs-line-main" id="fs3dLineMain"></div>
+          <div class="fs-line-sub" id="fs3dLineSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== 模式2: 毛玻璃 ====== -->
+    <div class="fs-mode-content hidden" id="fsModeGlass">
+      <!-- 背景层 -->
+      <div class="fs-glass-cover" id="fsGlassCover"></div>
+      <!-- 毛玻璃层 -->
+      <div class="fs-glass-frost"></div>
+      <!-- 雨水Canvas -->
+      <canvas id="fsRainCanvas" class="fs-rain-canvas"></canvas>
+      <!-- 毛玻璃设置面板 -->
+      <div id="fsGlassSettingsPanel" class="fs-settings-panel hidden">
+        <h3>毛玻璃 · 歌词设置</h3>
+        <div class="fs-settings-grid">
+          <div class="fs-set-row"><label>字体</label>
+            <select id="fsGlassSetFont">
+              <option value="'Orbitron','Noto Sans SC',sans-serif">Orbitron</option>
+              <option value="'Noto Sans SC',sans-serif">Noto Sans</option>
+              <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+              <option value="serif">衬线体</option>
+              <option value="cursive">手写体</option>
+            </select></div>
+          <div class="fs-set-row"><label>字体颜色</label>
+            <input type="color" id="fsGlassSetColor" value="#ffffff"></div>
+          <div class="fs-set-row"><label>字体大小</label>
+            <div class="fs-set-range"><input type="range" id="fsGlassSetSize" min="20" max="96" value="42"><span id="fsGlassSetSizeVal">42px</span></div></div>
+          <div class="fs-set-row"><label>毛玻璃模糊</label>
+            <div class="fs-set-range"><input type="range" id="fsGlassSetBlur" min="5" max="40" value="16"><span id="fsGlassSetBlurVal">16px</span></div></div>
+          <div class="fs-set-row"><label>背景</label>
+            <button id="fsGlassSetBg" class="fs-glass-btn" style="width:auto;height:auto;border-radius:8px;padding:6px 12px;font-size:11px;">选择文件</button>
+            <input type="file" id="fsGlassBgInput" accept="image/*" hidden>
+            <button id="fsGlassBgReset" class="fs-glass-btn" style="width:auto;height:auto;border-radius:8px;padding:6px 10px;font-size:11px;margin-left:4px;">默认</button></div>
+        </div>
+        <div class="fs-settings-actions">
+          <button id="fsGlassSetReset" class="fs-glass-btn">恢复默认</button>
+          <button id="fsGlassSetSave" class="fs-save-btn">保存设置</button>
+        </div>
+      </div>
+      <!-- 毛玻璃歌词 -->
+      <div class="fs-glass-lyric-stage" id="fsGlassLyricStage">
+        <div class="fs-glass-lyric-inner" id="fsGlassLyricInner">
+          <div class="fs-glass-line-main" id="fsGlassLineMain"></div>
+          <div class="fs-glass-line-sub" id="fsGlassLineSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-bottom-info">
+      <span id="fsSongTitle" class="fs-song-title"></span>
+      <span id="fsTimeDisplay" class="fs-time-display">00:00 / 00:00</span>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/player.js"></script>
+<script src="js/playlist.js"></script>
+<script src="js/lyrics.js"></script>
+<script src="js/spectrum.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/fullscreen.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

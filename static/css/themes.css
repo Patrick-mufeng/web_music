@@ -1,0 +1,147 @@
+/* ============================================
+   MusicPlayer — 主题样式
+   暗黑 / 霓虹 / 极简 三种主题
+   ============================================ */
+
+/* ============ 暗黑主题 (默认) ============ */
+[data-theme="dark"] {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111118;
+  --bg-tertiary: #1a1a24;
+  --bg-panel: #0d0d15;
+  --bg-glass: rgba(16, 16, 28, 0.85);
+  --bg-glass-strong: rgba(20, 20, 36, 0.92);
+  --text-primary: #e8e8f0;
+  --text-secondary: #9090a8;
+  --text-muted: #585870;
+  --text-accent: #00d4ff;
+  --accent: #00d4ff;
+  --accent-glow: rgba(0, 212, 255, 0.4);
+  --accent-dim: rgba(0, 212, 255, 0.12);
+  --accent2: #ff3cac;
+  --accent2-glow: rgba(255, 60, 172, 0.35);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(0, 212, 255, 0.2);
+  --gradient-1: linear-gradient(135deg, #00d4ff 0%, #3b82f6 50%, #8b5cf6 100%);
+  --gradient-2: linear-gradient(135deg, #ff3cac 0%, #784ba0 50%, #2b86c5 100%);
+}
+
+[data-theme="dark"] .starfield-bg { opacity: 0.6; }
+[data-theme="dark"] .app-logo { text-shadow: 0 0 30px rgba(0,212,255,0.15); }
+[data-theme="dark"] .playlist-item.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(139,92,246,0.08));
+}
+
+/* ============ 霓虹主题 ============ */
+[data-theme="neon"] {
+  --bg-primary: #0d0015;
+  --bg-secondary: #150020;
+  --bg-tertiary: #200030;
+  --bg-panel: #100018;
+  --bg-glass: rgba(20, 0, 30, 0.85);
+  --bg-glass-strong: rgba(25, 0, 40, 0.92);
+  --text-primary: #f5e6ff;
+  --text-secondary: #b8a0cc;
+  --text-muted: #705888;
+  --text-accent: #ff3cac;
+  --accent: #ff3cac;
+  --accent-glow: rgba(255, 60, 172, 0.5);
+  --accent-dim: rgba(255, 60, 172, 0.15);
+  --accent2: #00d4ff;
+  --accent2-glow: rgba(0, 212, 255, 0.4);
+  --border-color: rgba(255, 60, 172, 0.1);
+  --border-glow: rgba(255, 60, 172, 0.3);
+  --gradient-1: linear-gradient(135deg, #ff3cac 0%, #ff6b6b 30%, #ff8e53 60%, #ff3cac 100%);
+  --gradient-2: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 50%, #ff3cac 100%);
+}
+
+[data-theme="neon"] .starfield-bg { opacity: 0.7; }
+[data-theme="neon"] .app-logo {
+  text-shadow:
+    0 0 20px rgba(255,60,172,0.4),
+    0 0 40px rgba(255,60,172,0.2),
+    0 0 80px rgba(138,43,226,0.3);
+}
+[data-theme="neon"] .album-art-ring {
+  border-color: var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow), inset 0 0 30px rgba(255,60,172,0.1);
+}
+[data-theme="neon"] .ctrl-btn-play {
+  box-shadow: 0 0 30px rgba(255,60,172,0.5), 0 0 60px rgba(255,60,172,0.2);
+}
+[data-theme="neon"] .playlist-item.active {
+  background: linear-gradient(135deg, rgba(255,60,172,0.12), rgba(138,43,226,0.08));
+  border-color: rgba(255,60,172,0.25);
+}
+[data-theme="neon"] .progress-fill {
+  background: var(--gradient-1);
+}
+[data-theme="neon"] .theme-dot.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ============ 极简主题 ============ */
+[data-theme="minimal"] {
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e9ecef;
+  --bg-panel: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.9);
+  --bg-glass-strong: rgba(255, 255, 255, 0.95);
+  --text-primary: #1a1a2e;
+  --text-secondary: #6c757d;
+  --text-muted: #adb5bd;
+  --text-accent: #4361ee;
+  --accent: #4361ee;
+  --accent-glow: rgba(67, 97, 238, 0.3);
+  --accent-dim: rgba(67, 97, 238, 0.08);
+  --accent2: #f72585;
+  --accent2-glow: rgba(247, 37, 133, 0.3);
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-glow: rgba(67, 97, 238, 0.2);
+  --gradient-1: linear-gradient(135deg, #4361ee 0%, #3a0ca3 50%, #7209b7 100%);
+  --gradient-2: linear-gradient(135deg, #f72585 0%, #b5179e 50%, #4361ee 100%);
+}
+
+[data-theme="minimal"] .starfield-bg { display: none; }
+[data-theme="minimal"] .app-logo { text-shadow: none; color: #1a1a2e; }
+[data-theme="minimal"] .app-logo span { color: var(--accent); }
+[data-theme="minimal"] .album-art-ring { display: none; }
+[data-theme="minimal"] .ctrl-btn-play {
+  box-shadow: 0 4px 20px rgba(67,97,238,0.3);
+}
+[data-theme="minimal"] .playlist-item.active {
+  background: var(--accent-dim);
+  border-color: var(--border-glow);
+}
+[data-theme="minimal"] .spectrum-canvas { opacity: 0.3; }
+[data-theme="minimal"] .theme-dot.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+[data-theme="minimal"] .song-title {
+  background: none;
+  -webkit-text-fill-color: #1a1a2e;
+  color: #1a1a2e;
+}
+
+/* ============ 主题过渡 ============ */
+body {
+  transition: background var(--transition-slow), color var(--transition-slow);
+}
+
+/* 主题切换时所有可过渡元素 */
+.app-container *,
+.playlist-panel,
+.main-player,
+.ctrl-btn,
+.ctrl-btn-play,
+.progress-fill,
+.album-art-ring,
+.playlist-item {
+  transition: background-color var(--transition-base),
+              border-color var(--transition-base),
+              box-shadow var(--transition-base),
+              color var(--transition-base);
+}

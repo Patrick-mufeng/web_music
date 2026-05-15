@@ -1,0 +1,242 @@
+/* ============================================
+   MusicPlayer — 全屏歌词
+   模式1: 3D空间 | 模式2: 毛玻璃+雨水
+   独立样式，不依赖主题变量
+   ============================================ */
+
+.fs-overlay { position: fixed; inset: 0; z-index: 200; }
+.fs-overlay.hidden { display: none; }
+
+.fs-scene {
+  position: relative; z-index: 1;
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+/* ============ 通用按钮 ============ */
+.fs-glass-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  color: #333; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: transform 0.3s, background 0.3s;
+}
+.fs-glass-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.9); }
+
+/* 左上角按钮组 */
+.fs-top-left {
+  position: absolute; top: 20px; left: 20px;
+  display: flex; gap: 8px; z-index: 30;
+  transition: opacity 0.8s ease;
+}
+.fs-scene.idle .fs-top-left,
+.fs-scene.idle .fs-top-right,
+.fs-scene.idle .fs-settings-panel { opacity: 0; pointer-events: none; }
+
+.fs-bottom-info {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px 32px; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: opacity 0.8s ease;
+}
+.fs-song-title {
+  font-family: 'Orbitron','Noto Sans SC',sans-serif;
+  font-size: 12px; color: rgba(0,0,0,0.35); letter-spacing: 0.05em;
+}
+.fs-time-display {
+  font-family: 'JetBrains Mono',monospace;
+  font-size: 16px; color: rgba(0,0,0,0.45);
+}
+.fs-scene.idle .fs-bottom-info { opacity: 0; }
+
+/* ============ 右上角模式切换 ============ */
+.fs-top-right {
+  position: absolute; top: 20px; right: 20px;
+  display: flex; gap: 4px; z-index: 30;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 24px; padding: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  transition: opacity 0.8s ease;
+}
+.fs-mode-btn {
+  padding: 8px 16px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.45);
+  cursor: pointer; transition: all 0.25s ease;
+  white-space: nowrap;
+}
+.fs-mode-btn.active {
+  background: #1a1a2e; color: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+
+/* ============ 设置面板通用 ============ */
+.fs-settings-panel {
+  position: absolute; top: 20px; left: 80px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+  padding: 24px; width: 340px; max-width: calc(100vw - 120px);
+  z-index: 25; transition: opacity 0.8s ease; overflow: visible;
+}
+.fs-settings-panel.hidden { display: none; }
+.fs-settings-panel h3 {
+  font-family: 'Orbitron','Noto Sans SC',sans-serif;
+  font-size: 14px; font-weight: 700; color: #1a1a2e;
+  margin-bottom: 16px; letter-spacing: 0.04em; white-space: nowrap;
+}
+.fs-settings-grid { display: flex; flex-direction: column; gap: 14px; }
+.fs-set-row { display: flex; align-items: center; gap: 10px; }
+.fs-set-row label { font-size: 12px; color: rgba(0,0,0,0.55); min-width: 70px; font-weight: 500; flex-shrink: 0; white-space: nowrap; }
+.fs-set-row select {
+  background: #f5f5f5; border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px; color: #333; padding: 7px 10px; font-size: 12px;
+  flex: 1; min-width: 0; cursor: pointer;
+}
+.fs-set-row input[type="color"] { width: 38px; height: 32px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px; padding: 2px; cursor: pointer; background: #f5f5f5; }
+.fs-set-range { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.fs-set-range input[type="range"] { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 3px; background: #e0e0e0; outline: none; }
+.fs-set-range input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #1a1a2e; cursor: pointer; }
+.fs-set-range span { font-family: 'JetBrains Mono',monospace; font-size: 11px; color: rgba(0,0,0,0.5); min-width: 36px; text-align: right; flex-shrink: 0; }
+.fs-settings-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.06); }
+.fs-settings-actions .fs-glass-btn { width: auto; height: auto; border-radius: 10px; padding: 8px 16px; font-size: 12px; font-family: inherit; white-space: nowrap; }
+.fs-save-btn { padding: 8px 22px; border-radius: 10px; background: #1a1a2e; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; white-space: nowrap; flex-shrink: 0; }
+.fs-save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+
+/* ============ 模式容器 ============ */
+.fs-mode-content { position: absolute; inset: 0; }
+.fs-mode-content.hidden { display: none; }
+
+/* =====================================================
+   模式1: 3D空间
+   ===================================================== */
+.fs-bg-white { position: absolute; inset: 0; background: #ffffff; }
+.fs-lyric-stage {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; perspective: 800px;
+}
+.fs-lyric-block {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 0 40px;
+  will-change: transform, opacity;
+}
+.fs-line-main {
+  font-family: 'Orbitron','Noto Sans SC',sans-serif;
+  font-size: 48px; font-weight: 700; color: #1a1a2e;
+  text-align: center; line-height: 1.3; letter-spacing: 0.04em;
+  transform-style: preserve-3d;
+  white-space: normal; word-break: keep-all; overflow-wrap: break-word; max-width: 90vw;
+}
+.fs-line-sub {
+  font-family: 'Noto Sans SC',-apple-system,sans-serif;
+  font-size: 20px; font-weight: 300; color: rgba(0,0,0,0.4);
+  text-align: center; line-height: 1.5; letter-spacing: 0.04em;
+  white-space: normal; max-width: 80vw;
+}
+
+/* =====================================================
+   模式2: 毛玻璃 + 雨水
+   ===================================================== */
+.fs-glass-cover {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  background-color: #1a1a2e;
+  z-index: 0; overflow: hidden;
+}
+.fs-glass-frost {
+  position: absolute; inset: 0; z-index: 1;
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  background: rgba(0,0,0,0.15);
+}
+.fs-rain-canvas {
+  position: absolute; inset: 0; z-index: 2;
+  width: 100%; height: 100%; pointer-events: none;
+}
+.fs-glass-lyric-stage {
+  position: relative; z-index: 3;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+.fs-glass-lyric-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center;
+  transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+  /* padding 由 JS 动态设置 */
+}
+/* 毛玻璃歌词行 — 英文/中文/翻译全部统一 */
+.fs-glass-lyric-line {
+  font-family: 'Orbitron','Noto Sans SC',sans-serif;
+  font-size: 42px; font-weight: 400;
+  color: rgba(255,255,255,0.3);
+  text-align: center; line-height: 1.4; letter-spacing: 0.04em;
+  padding: 6px 24px;
+  opacity: 0.35; transition: all 0.35s ease;
+  white-space: normal; word-break: keep-all; max-width: 85vw;
+}
+.fs-glass-lyric-line.active {
+  opacity: 1; color: #ffffff;
+  font-weight: 700;
+  transform: scale(1.06);
+}
+.fs-glass-lyric-line:hover {
+  transform: scale(1.03);
+  cursor: pointer;
+}
+.fs-glass-lyric-line.active:hover {
+  transform: scale(1.08);
+}
+/* 旧样式兼容 */
+.fs-glass-line-main, .fs-glass-line-sub { display: none; }
+
+/* =====================================================
+   3D空间 — 8种动画
+   ===================================================== */
+.fs-lyric-block.entering.anim-slide { animation: fsSlideIn 0.55s cubic-bezier(0.22,0.61,0.36,1) both; }
+.fs-lyric-block.exiting.anim-slide  { animation: fsSlideOut 0.3s ease-in both; }
+@keyframes fsSlideIn { 0%{transform:translateY(40px) translateZ(-40px);opacity:0;filter:blur(4px)} 100%{transform:translateY(0) translateZ(0);opacity:1;filter:blur(0)} }
+@keyframes fsSlideOut { 0%{transform:translateY(0) translateZ(0);opacity:1;filter:blur(0)} 100%{transform:translateY(-40px) translateZ(-30px);opacity:0;filter:blur(4px)} }
+
+.fs-lyric-block.entering.anim-fade { animation: fsFadeIn 0.5s ease both; }
+.fs-lyric-block.exiting.anim-fade  { animation: fsFadeOut 0.3s ease-in both; }
+@keyframes fsFadeIn { 0%{opacity:0;transform:translateZ(-20px)} 100%{opacity:1;transform:translateZ(0)} }
+@keyframes fsFadeOut { 0%{opacity:1} 100%{opacity:0} }
+
+.fs-lyric-block.entering.anim-scale { animation: fsScaleIn 0.5s cubic-bezier(0.22,0.61,0.36,1) both; }
+.fs-lyric-block.exiting.anim-scale  { animation: fsScaleOut 0.3s ease-in both; }
+@keyframes fsScaleIn { 0%{transform:scale(0.85) translateZ(-30px);opacity:0;filter:blur(4px)} 100%{transform:scale(1) translateZ(0);opacity:1;filter:blur(0)} }
+@keyframes fsScaleOut { 0%{transform:scale(1);opacity:1} 100%{transform:scale(0.9) translateZ(-20px);opacity:0} }
+
+.fs-lyric-block.entering.anim-blur { animation: fsBlurIn 0.6s ease both; }
+.fs-lyric-block.exiting.anim-blur  { animation: fsBlurOut 0.35s ease-in both; }
+@keyframes fsBlurIn { 0%{opacity:0;filter:blur(16px);transform:translateZ(-20px)} 100%{opacity:1;filter:blur(0);transform:translateZ(0)} }
+@keyframes fsBlurOut { 0%{opacity:1;filter:blur(0)} 100%{opacity:0;filter:blur(12px)} }
+
+.fs-lyric-block.entering.anim-rotate { animation: fsRotateIn 0.65s cubic-bezier(0.22,0.61,0.36,1) both; }
+.fs-lyric-block.exiting.anim-rotate  { animation: fsRotateOut 0.35s ease-in both; }
+@keyframes fsRotateIn { 0%{transform:rotateX(-40deg) rotateY(15deg) translateZ(-60px);opacity:0;filter:blur(6px)} 60%{transform:rotateX(8deg) rotateY(-3deg) translateZ(10px);opacity:0.8} 100%{transform:rotateX(0) rotateY(0) translateZ(0);opacity:1;filter:blur(0)} }
+@keyframes fsRotateOut { 0%{transform:rotateX(0) rotateY(0) translateZ(0);opacity:1} 100%{transform:rotateX(30deg) rotateY(-10deg) translateZ(-40px);opacity:0;filter:blur(4px)} }
+
+.fs-lyric-block.entering.anim-typewriter .fs-line-main { overflow:hidden; white-space:nowrap; animation:fsTypeIn 0.8s steps(20,end) both; }
+.fs-lyric-block.exiting.anim-typewriter { animation: fsFadeOut 0.3s ease-in both; }
+@keyframes fsTypeIn { 0%{max-width:0;opacity:0} 100%{max-width:100%;opacity:1} }
+
+.fs-lyric-block.entering.anim-bounce { animation: fsBounceIn 0.7s cubic-bezier(0.22,0.61,0.36,1) both; }
+.fs-lyric-block.exiting.anim-bounce  { animation: fsSlideOut 0.3s ease-in both; }
+@keyframes fsBounceIn { 0%{transform:translateY(80px) translateZ(-40px) scale(0.7);opacity:0} 50%{transform:translateY(-12px) translateZ(10px) scale(1.02);opacity:0.9} 70%{transform:translateY(6px) translateZ(5px) scale(0.98)} 100%{transform:translateY(0) translateZ(0) scale(1);opacity:1} }
+
+.fs-lyric-block.entering.anim-flyIn { animation: fsFlyIn 0.6s cubic-bezier(0.22,0.61,0.36,1) both; }
+.fs-lyric-block.exiting.anim-flyIn  { animation: fsFlyOut 0.3s ease-in both; }
+@keyframes fsFlyIn { 0%{transform:translateX(-120px) translateZ(-50px) rotateY(20deg);opacity:0;filter:blur(4px)} 100%{transform:translateX(0) translateZ(0) rotateY(0);opacity:1;filter:blur(0)} }
+@keyframes fsFlyOut { 0%{transform:translateX(0) translateZ(0) rotateY(0);opacity:1} 100%{transform:translateX(80px) translateZ(-30px) rotateY(-10deg);opacity:0;filter:blur(3px)} }

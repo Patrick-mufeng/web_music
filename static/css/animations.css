@@ -1,0 +1,212 @@
+/* ============================================
+   MusicPlayer — 全局动画与微交互
+   ============================================ */
+
+/* ============ 拖拽高亮 ============ */
+body.drag-over .app-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  border: 3px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 212, 255, 0.05);
+  animation: dragPulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes dragPulse {
+  0%, 100% { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+  50% { border-color: var(--accent2); background: rgba(255,60,172,0.05); }
+}
+
+/* ============ 列表项拖拽 ============ */
+.playlist-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  background: var(--bg-tertiary);
+}
+
+.playlist-item.drag-over {
+  border-top: 2px solid var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* ============ 按钮涟漪 ============ */
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0);
+  animation: ripple 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ============ 加载动画 ============ */
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============ 封面脉冲 ============ */
+.album-art-pulse {
+  animation: albumPulse 2s ease-in-out infinite;
+}
+
+@keyframes albumPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.1); }
+  50% { box-shadow: 0 0 40px rgba(0,212,255,0.25); }
+}
+
+/* ============ 项入动画 ============ */
+@keyframes itemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.playlist-item.new-item {
+  animation: itemSlideIn 0.3s ease-out both;
+}
+
+/* 交错延迟 */
+.playlist-item:nth-child(1) { animation-delay: 0s; }
+.playlist-item:nth-child(2) { animation-delay: 0.03s; }
+.playlist-item:nth-child(3) { animation-delay: 0.06s; }
+.playlist-item:nth-child(4) { animation-delay: 0.09s; }
+.playlist-item:nth-child(5) { animation-delay: 0.12s; }
+.playlist-item:nth-child(6) { animation-delay: 0.15s; }
+.playlist-item:nth-child(7) { animation-delay: 0.18s; }
+.playlist-item:nth-child(8) { animation-delay: 0.21s; }
+.playlist-item:nth-child(9) { animation-delay: 0.24s; }
+.playlist-item:nth-child(10) { animation-delay: 0.27s; }
+
+/* ============ 搜索高亮 ============ */
+.search-highlight {
+  background: rgba(0, 212, 255, 0.15);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ============ 淡入淡出音频过渡 ============ */
+audio.fade-in {
+  animation: audioFadeIn 0.5s ease-out;
+}
+
+@keyframes audioFadeIn {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+/* ============ 播放指示器点 ============ */
+.playing-indicator {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.playing-indicator .bar {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: indicatorBounce 0.8s ease-in-out infinite;
+}
+
+.playing-indicator .bar:nth-child(1) { animation-delay: 0s; height: 60%; }
+.playing-indicator .bar:nth-child(2) { animation-delay: 0.15s; height: 100%; }
+.playing-indicator .bar:nth-child(3) { animation-delay: 0.3s; height: 40%; }
+.playing-indicator .bar:nth-child(4) { animation-delay: 0.45s; height: 80%; }
+
+@keyframes indicatorBounce {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.4); }
+}
+
+/* ============ 收藏按钮动画 ============ */
+.favorited svg {
+  fill: var(--accent2);
+  stroke: var(--accent2);
+  animation: heartBeat 0.4s ease-in-out;
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+/* ============ 弹窗选项按钮 ============ */
+.timer-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.timer-option {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.timer-option:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.timer-option.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ============ 清空按钮 ============ */
+.btn-danger {
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.2);
+}
+
+.btn-danger:hover {
+  background: rgba(239,68,68,0.1);
+  border-color: rgba(239,68,68,0.4);
+}
+
+/* ============ 自定义滚动条（全局） ============ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ============ 选择文本颜色 ============ */
+::selection {
+  background: rgba(0, 212, 255, 0.25);
+  color: #fff;
+}
