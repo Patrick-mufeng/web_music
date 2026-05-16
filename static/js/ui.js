@@ -175,12 +175,12 @@ function _renderAllLyrics(container) {
   container.innerHTML = html;
   container.dataset.rendered = '1';
 
-  // 初始滚动到第一行可见位置
+  // 初始滚动到第一行居中位置
   const firstLine = container.querySelector('.lyrics-line');
   if (firstLine) {
     const containerRect = container.getBoundingClientRect();
     const elRect = firstLine.getBoundingClientRect();
-    container.scrollTop = container.scrollTop + elRect.top - containerRect.top - containerRect.height * 0.35;
+    container.scrollTop = container.scrollTop + elRect.top - containerRect.top - containerRect.height * 0.5;
   }
 
   // 滚轮浏览
@@ -214,9 +214,9 @@ function _scrollToActive(container) {
   const activeEl = container.querySelector('.lyrics-line.active');
   if (!activeEl) return;
 
-  // 用 offsetTop 计算，避免 getBoundingClientRect 在滚动时产生抖动
+  // 高亮歌词滚动到容器竖向居中位置
   const containerH = container.clientHeight;
-  const targetY = activeEl.offsetTop + activeEl.offsetHeight / 2 - containerH * 0.35;
+  const targetY = activeEl.offsetTop + activeEl.offsetHeight / 2 - containerH * 0.5;
 
   // 如果距离小于5px则不滚动，减少无意义的重排
   const diff = Math.abs(container.scrollTop - targetY);

@@ -5,6 +5,7 @@ title MusicPlayer
 
 echo ╔═════════════════════════════════════╗
 echo ║     MusicPlayer 启动脚本           ║
+echo ║  修改端口请编辑 data\server_config.json  ║
 echo ╚═════════════════════════════════════╝
 echo.
 
@@ -20,15 +21,20 @@ if %errorlevel% neq 0 (
 echo [OK] 已检测到 Python 环境
 echo.
 
-:: 安装依赖
-echo [信息] 正在检查并安装依赖...
-pip install -r requirements.txt -q
+:: 检查依赖（仅在缺失时安装）
+echo [信息] 正在检查依赖...
+python -c "import flask,mutagen" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [错误] 依赖安装失败，请检查网络连接！
-    pause
-    exit /b 1
+    echo [信息] 安装缺失依赖...
+    pip install -r requirements.txt -q
+    if %errorlevel% neq 0 (
+        echo [错误] 依赖安装失败，请检查网络连接！
+        pause
+        exit /b 1
+    )
+) else (
+    echo [OK] 依赖已就绪
 )
-echo [OK] 依赖就绪
 echo.
 
 :: 启动服务

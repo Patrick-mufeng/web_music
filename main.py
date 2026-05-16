@@ -5,10 +5,10 @@ MusicPlayer — Python Flask 后端服务
 import os
 import sys
 import json
+import argparse
 import uuid
 import hashlib
 import base64
-import shutil
 import time
 from pathlib import Path
 from datetime import datetime
@@ -24,10 +24,33 @@ from mutagen.mp4 import MP4
 from mutagen.oggvorbis import OggVorbis
 
 # ============ 配置 ============
-BASE_DIR = Path(__file__).parent
-STATIC_DIR = BASE_DIR / 'static'
+
+def get_base_dir():
+    """获取可写数据根目录（兼容 PyInstaller / Nuitka 打包）
+    
+    打包后 sys.frozen = True，__file__ 指向临时解压目录（只读），
+    应改用 exe 所在目录，这样 data/ 和 server_config.json 才能被用户修改。
+    """
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    else:
+        return Path(__file__).parent
+
+
+def get_resource_dir():
+    """获取只读资源目录（打包后 static/ 等内置在 _internal/ 中）"""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后，内置资源在 sys._MEIPASS
+        return Path(sys._MEIPASS)
+    else:
+        return Path(__file__).parent
+
+
+BASE_DIR = get_base_dir()
+RESOURCE_DIR = get_resource_dir()
+STATIC_DIR = RESOURCE_DIR / 'static'
 DATA_DIR = BASE_DIR / 'data'
-UPLOAD_DIR = BASE_DIR / 'data' / 'uploads'
+UPLOAD_DIR = DATA_DIR / 'uploads'
 
 # 确保目录存在
 DATA_DIR.mkdir(exist_ok=True)
@@ -38,9 +61,14 @@ SONGS_FILE = DATA_DIR / 'songs.json'
 FAVORITES_FILE = DATA_DIR / 'favorites.json'
 HISTORY_FILE = DATA_DIR / 'history.json'
 CONFIG_FILE = DATA_DIR / 'config.json'
+SERVER_CONFIG_FILE = DATA_DIR / 'server_config.json'
 LRC_STORE_DIR = DATA_DIR / 'lrc_cache'
+COVERS_DIR = DATA_DIR / 'covers'
+BACKGROUNDS_DIR = DATA_DIR / 'backgrounds'
 
 LRC_STORE_DIR.mkdir(exist_ok=True)
+COVERS_DIR.mkdir(exist_ok=True)
+BACKGROUNDS_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -62,10 +90,10 @@ def load_json(filepath, default=None):
 
 
 def save_json(filepath, data):
-    """保存JSON文件"""
+    """保存JSON文件（压缩格式，不带缩进）"""
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=None, separators=(',', ':'))
     except IOError as e:
         print(f"[ERROR] 保存 {filepath} 失败: {e}")
 
@@ -198,8 +226,7 @@ class AudioParser:
         for key in tags.keys():
             if key.startswith('APIC'):
                 try:
-                    cover_data = tags[key].data
-                    info['cover'] = base64.b64encode(cover_data).decode()
+                    info['cover'] = tags[key].data  # 原始二进制
                 except Exception:
                     pass
                 break
@@ -226,7 +253,7 @@ class AudioParser:
         # 封面
         if hasattr(audio, 'pictures') and audio.pictures:
             try:
-                info['cover'] = base64.b64encode(audio.pictures[0].data).decode()
+                info['cover'] = audio.pictures[0].data  # 原始二进制
             except Exception:
                 pass
 
@@ -248,7 +275,7 @@ class AudioParser:
         cover_data = tags.get('covr', [])
         if cover_data:
             try:
-                info['cover'] = base64.b64encode(bytes(cover_data[0])).decode()
+                info['cover'] = bytes(cover_data[0])  # 原始二进制
             except Exception:
                 pass
 
@@ -268,7 +295,7 @@ class AudioParser:
         # 封面 (METADATA_BLOCK_PICTURE)
         if hasattr(audio, 'pictures') and audio.pictures:
             try:
-                info['cover'] = base64.b64encode(audio.pictures[0].data).decode()
+                info['cover'] = audio.pictures[0].data  # 原始二进制
             except Exception:
                 pass
 
@@ -384,6 +411,9 @@ class DataManager:
         self.songs = load_json(SONGS_FILE, {})
         self.favorites = load_json(FAVORITES_FILE, [])
         self.history = load_json(HISTORY_FILE, [])
+        self._migrate_covers()
+        self._migrate_lyrics_to_cache()
+        self._clean_orphaned_files()
 
     def _save_songs(self):
         save_json(SONGS_FILE, self.songs)
@@ -397,6 +427,81 @@ class DataManager:
             self.history = self.history[-50:]
         save_json(HISTORY_FILE, self.history)
 
+    # ─── 迁移工具 ────────────────────────────────
+
+    def _migrate_covers(self):
+        """将 songs.json 中内嵌的 base64 封面提取为独立文件"""
+        if not hasattr(self, '_covers_migrated'):
+            self._covers_migrated = True
+        dirty = False
+        for sid, song in self.songs.items():
+            cover_val = song.get('cover')
+            if isinstance(cover_val, str) and len(cover_val) > 50:
+                # 是 base64 字符串 → 解码存文件
+                try:
+                    img_bytes = base64.b64decode(cover_val)
+                    cover_path = COVERS_DIR / f'{sid}.jpg'
+                    with open(cover_path, 'wb') as f:
+                        f.write(img_bytes)
+                    song['cover'] = True
+                    dirty = True
+                except Exception as e:
+                    print(f"[WARN] 封面迁移失败 {sid}: {e}")
+                    song['cover'] = False
+            elif cover_val is None:
+                song['cover'] = False
+                dirty = True
+        if dirty:
+            self._save_songs()
+        # 清除封面迁移标记——下一步 AudioParser 不再产生 base64，迁移一次性完成
+        print(f"[MIGRATE] 封面迁移完成, {sum(1 for s in self.songs.values() if s.get('cover'))} 首有封面")
+
+    def _migrate_lyrics_to_cache(self):
+        """确保所有已存歌词都已写入 LRC 缓存文件"""
+        for sid, song in self.songs.items():
+            for source in ('embedded', 'external'):
+                text = song.get(f'{source}_lyrics' if source == 'embedded' else f'{source}_lrc', '')
+                if not text:
+                    continue
+                cache_path = LRC_STORE_DIR / f'{sid}_{source}.lrc'
+                if not cache_path.exists():
+                    try:
+                        with open(cache_path, 'w', encoding='utf-8') as f:
+                            f.write(text)
+                    except IOError:
+                        pass
+        # 清理 songs.json 中的歌词文本（下一轮 save 生效）
+        for song in self.songs.values():
+            song.pop('embedded_lyrics', None)
+            song.pop('external_lrc', None)
+        self._save_songs()
+
+    def _clean_orphaned_files(self):
+        """清理不在 songs.json 中的孤立缓存/封面/上传文件"""
+        known_ids = set(self.songs.keys())
+
+        # 孤立 LRC 缓存
+        for f in LRC_STORE_DIR.glob('*.lrc'):
+            sid = f.stem.rsplit('_', 1)[0]
+            if sid not in known_ids:
+                try:
+                    f.unlink()
+                    print(f"[CLEAN] 删除孤立歌词缓存: {f.name}")
+                except OSError:
+                    pass
+
+        # 孤立封面
+        for f in COVERS_DIR.glob('*.jpg'):
+            sid = f.stem
+            if sid not in known_ids:
+                try:
+                    f.unlink()
+                    print(f"[CLEAN] 删除孤立封面: {f.name}")
+                except OSError:
+                    pass
+
+    # ─── 增删改查 ────────────────────────────────
+
     def add_song(self, audio_info, filepath):
         """添加歌曲"""
         song_id = generate_song_id(filepath)
@@ -404,6 +509,23 @@ class DataManager:
         # 去重检查
         if song_id in self.songs:
             return song_id, self.songs[song_id], False
+
+        # 处理封面：存为独立文件，song_data 只保留布尔值
+        cover_bytes = audio_info.get('cover')
+        has_cover = False
+        if cover_bytes:
+            try:
+                cover_path = COVERS_DIR / f'{song_id}.jpg'
+                if isinstance(cover_bytes, str):
+                    cover_bytes = base64.b64decode(cover_bytes)
+                with open(cover_path, 'wb') as f:
+                    f.write(cover_bytes)
+                has_cover = True
+            except Exception as e:
+                print(f"[WARN] 封面保存失败 {song_id}: {e}")
+
+        # 获取歌词文本
+        lyrics_text = audio_info.get('lyrics', '')
 
         song_data = {
             'id': song_id,
@@ -413,11 +535,9 @@ class DataManager:
             'duration': audio_info['duration'],
             'duration_str': audio_info['duration_str'],
             'format': audio_info['format'],
-            'cover': audio_info.get('cover'),
-            'has_embedded_lyrics': audio_info.get('has_embedded_lyrics', False),
-            'lyric_source': 'embedded' if audio_info.get('has_embedded_lyrics') else 'none',
-            'embedded_lyrics': audio_info.get('lyrics', ''),
-            'external_lrc': '',
+            'cover': has_cover,
+            'has_embedded_lyrics': bool(lyrics_text),
+            'lyric_source': 'embedded' if lyrics_text else 'none',
             'filepath': str(filepath),
             'added_at': datetime.now().isoformat()
         }
@@ -425,9 +545,9 @@ class DataManager:
         self.songs[song_id] = song_data
         self._save_songs()
 
-        # 缓存内嵌歌词
-        if audio_info.get('lyrics'):
-            self._cache_lyrics(song_id, 'embedded', audio_info['lyrics'])
+        # 缓存内嵌歌词到独立文件
+        if lyrics_text:
+            self._cache_lyrics(song_id, 'embedded', lyrics_text)
 
         return song_id, song_data, True
 
@@ -445,6 +565,11 @@ class DataManager:
             if lrc_file.exists():
                 lrc_file.unlink()
 
+            # 清理封面
+            cover_file = COVERS_DIR / f'{song_id}.jpg'
+            if cover_file.exists():
+                cover_file.unlink()
+
             # 清理上传的音频文件
             for f in UPLOAD_DIR.glob(f'{song_id}.*'):
                 f.unlink()
@@ -459,11 +584,10 @@ class DataManager:
         return list(self.songs.values())
 
     def bind_lrc(self, song_id, lrc_text):
-        """绑定外置LRC歌词"""
+        """绑定外置LRC歌词（存入缓存文件，song dict 只标记来源）"""
         if song_id not in self.songs:
             return False
 
-        self.songs[song_id]['external_lrc'] = lrc_text
         self.songs[song_id]['lyric_source'] = 'external'
         self._save_songs()
         self._cache_lyrics(song_id, 'external', lrc_text)
@@ -474,7 +598,6 @@ class DataManager:
         if song_id not in self.songs:
             return False
 
-        self.songs[song_id]['external_lrc'] = ''
         # 恢复为内嵌或none
         if self.songs[song_id].get('has_embedded_lyrics'):
             self.songs[song_id]['lyric_source'] = 'embedded'
@@ -489,19 +612,21 @@ class DataManager:
         return True
 
     def get_lyrics(self, song_id, source=None):
-        """获取歌词内容"""
+        """获取歌词内容（从 LRC 缓存文件读取）"""
         song = self.songs.get(song_id)
         if not song:
             return None, None
 
         effective_source = source or song.get('lyric_source', 'none')
 
-        if effective_source == 'embedded':
-            text = song.get('embedded_lyrics', '')
-        elif effective_source == 'external':
-            text = song.get('external_lrc', '')
-        else:
-            text = ''
+        # 从缓存文件读取
+        cache_path = LRC_STORE_DIR / f'{song_id}_{effective_source}.lrc'
+        text = ''
+        if cache_path.exists():
+            try:
+                text = cache_path.read_text(encoding='utf-8')
+            except IOError:
+                pass
 
         if not text:
             return None, effective_source
@@ -520,8 +645,13 @@ class DataManager:
         song = self.songs[song_id]
         if source == 'embedded' and song.get('has_embedded_lyrics'):
             song['lyric_source'] = 'embedded'
-        elif source == 'external' and song.get('external_lrc'):
-            song['lyric_source'] = 'external'
+        elif source == 'external':
+            # 检查外置歌词缓存文件是否存在
+            cache_path = LRC_STORE_DIR / f'{song_id}_external.lrc'
+            if cache_path.exists():
+                song['lyric_source'] = 'external'
+            else:
+                return False
         else:
             return False
 
@@ -739,17 +869,63 @@ def serve_audio(song_id):
 
 @app.route('/api/cover/<song_id>', methods=['GET'])
 def serve_cover(song_id):
-    """提供专辑封面"""
+    """提供专辑封面（从独立文件读取）"""
     song = dm.get_song(song_id)
     if not song or not song.get('cover'):
         return jsonify({'error': '无封面'}), 404
 
-    try:
-        cover_bytes = base64.b64decode(song['cover'])
-        return cover_bytes, 200, {'Content-Type': 'image/jpeg'}
-    except Exception:
-        return jsonify({'error': '封面解析失败'}), 500
+    cover_path = COVERS_DIR / f'{song_id}.jpg'
+    if not cover_path.exists():
+        return jsonify({'error': '封面文件不存在'}), 404
 
+    return send_file(cover_path, mimetype='image/jpeg')
+
+
+# ============ 毛玻璃全屏背景图 ============
+
+@app.route('/api/background', methods=['POST'])
+def upload_background():
+    """上传全屏毛玻璃背景图片"""
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': '未提供图片'}), 400
+
+    img = request.files['image']
+    if not img.filename:
+        return jsonify({'success': False, 'error': '文件名为空'}), 400
+
+    # 清理旧背景图
+    for old in BACKGROUNDS_DIR.glob('glass_bg_*'):
+        try:
+            old.unlink()
+        except OSError:
+            pass
+
+    ext = Path(img.filename).suffix.lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        ext = '.jpg'
+
+    stored_name = f'glass_bg_{uuid.uuid4().hex[:8]}{ext}'
+    stored_path = BACKGROUNDS_DIR / stored_name
+    try:
+        img.save(str(stored_path))
+    except IOError as e:
+        return jsonify({'success': False, 'error': f'保存失败: {e}'}), 500
+
+    return jsonify({'success': True, 'filename': stored_name})
+
+
+@app.route('/api/background/<filename>', methods=['GET'])
+def serve_background(filename):
+    """提供背景图片"""
+    # 防止路径穿越
+    safe_name = Path(filename).name
+    filepath = BACKGROUNDS_DIR / safe_name
+    if not filepath.exists():
+        return jsonify({'error': '文件不存在'}), 404
+    return send_file(filepath)
+
+
+# ============ LRC 歌词 ============
 
 @app.route('/api/song/<song_id>/lrc', methods=['POST'])
 def upload_lrc(song_id):
@@ -958,13 +1134,42 @@ def main():
     import webbrowser
     import threading
 
+    # ---------- 命令行参数 ----------
+    parser = argparse.ArgumentParser(
+        description='MusicPlayer — 本地音乐播放器',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f'配置文件: {SERVER_CONFIG_FILE}'
+    )
+    parser.add_argument('--port', type=int, default=None, help='服务端口 (默认 5000)')
+    parser.add_argument('--host', default=None, help='绑定地址 (默认 127.0.0.1)')
+    args = parser.parse_args()
+
+    # ---------- 读取配置文件 ----------
+    # 优先级: 命令行参数 > 配置文件 > 内置默认值
     host = '127.0.0.1'
     port = 5000
+
+    if SERVER_CONFIG_FILE.exists():
+        server_cfg = load_json(SERVER_CONFIG_FILE, {})
+        host = server_cfg.get('host', host)
+        port = int(server_cfg.get('port', port))
+    else:
+        # 首次运行：自动创建配置文件，方便用户后续修改
+        default_cfg = {'host': host, 'port': port}
+        save_json(SERVER_CONFIG_FILE, default_cfg)
+        print(f'[INFO] 已创建配置文件: {SERVER_CONFIG_FILE}')
+
+    # 命令行参数覆盖
+    if args.host is not None:
+        host = args.host
+    if args.port is not None:
+        port = args.port
 
     print(f"""
 {'=' * 50}
   MusicPlayer Server
   Address: http://{host}:{port}
+  Config: {SERVER_CONFIG_FILE}
   Mode: Local Offline
   Quit: Ctrl+C
 {'=' * 50}

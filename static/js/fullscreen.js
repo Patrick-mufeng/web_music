@@ -251,7 +251,17 @@ const ModeGlass = {
   },
 
   _loadCfg() {
-    try { const s = localStorage.getItem('fs_glass_cfg'); if (s) Object.assign(this.cfg, JSON.parse(s)); } catch (_) {}
+    try {
+      const s = localStorage.getItem('fs_glass_cfg');
+      if (s) {
+        const parsed = JSON.parse(s);
+        // 迁移旧版 DataURL → 清除（改为用后端存储）
+        if (parsed.bgImage && parsed.bgImage.startsWith('data:')) {
+          parsed.bgImage = '';
+        }
+        Object.assign(this.cfg, parsed);
+      }
+    } catch (_) {}
   },
   _saveCfg() { localStorage.setItem('fs_glass_cfg', JSON.stringify(this.cfg)); },
 
@@ -260,13 +270,15 @@ const ModeGlass = {
     this._applyLyricStyle();
   },
 
-  // 仅背景切换（视频/图片/默认）
+  // 仅背景切换（从后端加载图片）
   _applyBg() {
     const s = this.cfg;
     if (!this.cover) return;
 
     if (s.bgImage) {
-      this.cover.style.backgroundImage = `url(${s.bgImage})`;
+      // s.bgImage 现在是后端文件名，不再是 DataURL
+      const url = API.getBackgroundURL(s.bgImage);
+      this.cover.style.backgroundImage = `url(${url})`;
       this.cover.style.backgroundSize = 'cover';
       this.cover.style.backgroundPosition = 'center';
       this.cover.style.backgroundColor = '#000';
@@ -312,17 +324,22 @@ const ModeGlass = {
       this._applyLyricStyle();
     });
 
-    // 背景切换
+    // 背景切换（上传到后端，存储文件名）
     const bgInput = document.getElementById('fsGlassBgInput');
     document.getElementById('fsGlassSetBg').addEventListener('click', () => bgInput.click());
     bgInput.addEventListener('change', (e) => {
       const f = e.target.files[0]; if (!f) return;
-      const r = new FileReader();
-      r.onload = () => {
-        this.cfg.bgImage = r.result;
-        this._applyBg();
-      };
-      r.readAsDataURL(f);
+      // 上传到后端
+      API.uploadBackground(f).then(res => {
+        if (res.success && res.filename) {
+          this.cfg.bgImage = res.filename;
+          this._applyBg();
+        } else {
+          showToast('背景上传失败', 'error');
+        }
+      }).catch(() => {
+        showToast('背景上传失败', 'error');
+      });
       e.target.value = '';
     });
     document.getElementById('fsGlassBgReset').addEventListener('click', () => {
@@ -332,7 +349,11 @@ const ModeGlass = {
 
     document.getElementById('fsGlassSetSave').addEventListener('click', () => { this._saveCfg(); panel.classList.add('hidden'); });
     document.getElementById('fsGlassSetReset').addEventListener('click', () => {
-      this.cfg = { font: "'Orbitron','Noto Sans SC',sans-serif", color: '#ffffff', size: 42, blur: 8, bgImage: '' };
+      this.cfg.bgImage = '';
+      this.cfg.font = "'Orbitron','Noto Sans SC',sans-serif";
+      this.cfg.color = '#ffffff';
+      this.cfg.size = 42;
+      this.cfg.blur = 8;
       this._applyCfg(); this._syncUI();
     });
   },

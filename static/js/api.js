@@ -113,5 +113,17 @@ const API = {
   // 获取配置
   getConfig() {
     return this.request('GET', '/api/config');
+  },
+
+  // 上传全屏背景图片
+  uploadBackground(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.request('POST', '/api/background', formData);
+  },
+
+  // 背景图片URL
+  getBackgroundURL(filename) {
+    return `${this.baseURL}/api/background/${encodeURIComponent(filename)}`;
   }
 };
