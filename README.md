@@ -2,14 +2,60 @@
 
 基于 Python + Web 前端的本地音乐播放器，支持双歌词（内嵌/外置LRC）显示、双全屏模式（3D空间/毛玻璃雨景）、实时频谱可视化。
 
-## 启动方式
+## 快速开始
+
+### 源码运行
 
 ```bash
-pip install flask mutagen
+pip install flask mutagen flask-cors
 python main.py
 ```
 
 浏览器打开 `http://127.0.0.1:5000` 即可使用。
+
+### 打包版（exe）
+
+从 [Releases](https://github.com/Patrick-mufeng/web_music/releases) 下载 `MusicPlayer-v1.0.0.zip`，解压后双击 `MusicPlayer.exe` 启动。
+
+## 配置端口
+
+服务默认运行在 `127.0.0.1:5000`，三种方式修改：
+
+### 1. 配置文件（推荐）
+
+编辑 `data/server_config.json`（首次运行自动生成）：
+
+```json
+{
+  "host": "127.0.0.1",
+  "port": 5000
+}
+```
+
+修改后重启服务即可生效。打包版 exe 的配置文件在 exe 同级目录下，用户可直接修改。
+
+### 2. 命令行参数（临时覆盖，优先级最高）
+
+```bash
+python main.py --port 8080
+python main.py --host 0.0.0.0 --port 3000
+```
+
+### 3. 优先级规则
+
+**命令行参数 > 配置文件 > 内置默认值（127.0.0.1:5000）**
+
+## 打包为 exe
+
+> 已配置 `MusicPlayer.spec`，直接使用 PyInstaller 构建。
+
+```bash
+pip install pyinstaller
+pyinstaller MusicPlayer.spec
+```
+
+输出在 `dist/MusicPlayer/` 目录下，包含 `MusicPlayer.exe` + `_internal/` 依赖目录。
+打包版同样支持 `data/server_config.json` 配置端口。
 
 ## 界面布局
 
@@ -79,22 +125,36 @@ python main.py
 
 ```
 ├── main.py               # Flask 后端
-├── static/
-│   ├── index.html         # 主页面
+├── start.bat             # Windows 启动脚本
+├── Icon.ico              # 应用图标
+├── MusicPlayer.spec      # PyInstaller 构建配置
+├── requirements.txt      # Python 依赖
+├── README.md             # 说明文档
+├── static/               # 前端页面
+│   ├── index.html        # 主页面
 │   ├── css/
-│   │   ├── main.css       # 主界面样式
-│   │   ├── themes.css     # 主题样式
-│   │   ├── animations.css # 全局动画
-│   │   └── fullscreen.css # 全屏歌词样式
+│   │   ├── main.css      # 主界面样式
+│   │   ├── themes.css    # 主题样式
+│   │   ├── animations.css# 全局动画
+│   │   └── fullscreen.css# 全屏歌词样式
 │   └── js/
-│       ├── api.js         # 后端 API
-│       ├── player.js      # 播放器
-│       ├── playlist.js    # 播放列表
-│       ├── lyrics.js      # 歌词解析
-│       ├── effects.js     # 星空粒子
-│       ├── spectrum.js    # 频谱
-│       ├── ui.js          # 主界面交互
-│       ├── fullscreen.js  # 全屏歌词
-│       └── app.js         # 入口配置
-└── data/                  # 持久化数据（自动生成）
+│       ├── api.js        # 后端 API
+│       ├── player.js     # 播放器
+│       ├── playlist.js   # 播放列表
+│       ├── lyrics.js     # 歌词解析
+│       ├── effects.js    # 星空粒子
+│       ├── spectrum.js   # 频谱
+│       ├── ui.js         # 主界面交互
+│       ├── fullscreen.js # 全屏歌词
+│       └── app.js        # 入口配置
+└── data/                 # 持久化数据（自动生成）
+    ├── server_config.json# 服务端口配置
+    ├── config.json       # 用户设置
+    ├── songs.json        # 歌曲库
+    ├── favorites.json    # 收藏
+    ├── history.json      # 播放历史
+    ├── uploads/          # 上传的音乐文件
+    ├── covers/           # 专辑封面缓存
+    ├── backgrounds/      # 背景图片
+    └── lrc_cache/        # 歌词缓存
 ```
